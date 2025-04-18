@@ -3,6 +3,31 @@ import EventEmitter from 'events'
 
 export default class LocalAudioPlayer extends EventEmitter {
   constructor(ctx) {
+    super();
+    this.ctx = ctx;
+    this.player = null;
+    this.libraryItem = null;
+    this.audioTracks = [];
+    this.currentTrackIndex = 0;
+    this.isHlsTranscode = null;
+    this.hlsInstance = null;
+    this.usingNativeplayer = false;
+    this.startTime = 0;
+    this.trackStartTime = 0;
+    this.playWhenReady = false;
+    this.defaultPlaybackRate = 1;
+    this.playableMimeTypes = [];
+    // --- Silence Skip Fields ---
+    this.audioContext = null;
+    this.analyser = null;
+    this.silenceSkipEnabled = false;
+    this.silenceSkipThreshold = 0.01; // Adjust as needed
+    this.silenceDuration = 0.5; // seconds
+    this.silenceStart = null;
+    this.silenceCheckInterval = null;
+    // --- End Silence Skip Fields ---
+    this.initialize();
+  
     super()
 
     this.ctx = ctx
@@ -22,7 +47,55 @@ export default class LocalAudioPlayer extends EventEmitter {
     this.playableMimeTypes = []
 
     this.initialize()
+    // Setup silence detection after player is created
+    setTimeout(() => this.setupSilenceDetection(), 0);
   }
+
+  // --- Silence Detection Setup ---
+  setupSilenceDetection() {
+    if (this.audioContext || !this.player) return; // Already set up or player not ready
+    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const source = this.audioContext.createMediaElementSource(this.player);
+    this.analyser = this.audioContext.createAnalyser();
+    source.connect(this.analyser);
+    // Do not connect analyser to destination to avoid double audio output
+    // this.analyser.connect(this.audioContext.destination);
+    this.analyser.fftSize = 2048;
+    this.silenceCheckInterval = setInterval(() => {
+      if (!this.silenceSkipEnabled || this.player.paused) return;
+      const bufferLength = this.analyser.fftSize;
+      const dataArray = new Uint8Array(bufferLength);
+      this.analyser.getByteTimeDomainData(dataArray);
+      // Calculate average amplitude (normalized 0-1)
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        let v = (dataArray[i] - 128) / 128;
+        sum += Math.abs(v);
+      }
+      const avg = sum / bufferLength;
+      if (avg < this.silenceSkipThreshold) {
+        if (this.silenceStart === null) {
+          this.silenceStart = this.player.currentTime;
+        } else if (this.player.currentTime - this.silenceStart > this.silenceDuration) {
+          // Skip ahead by 0.5s (or more, as desired)
+          this.seek(this.getCurrentTime() + 0.5, !this.player.paused);
+          this.silenceStart = null;
+        }
+      } else {
+        this.silenceStart = null;
+      }
+    }, 100);
+  }
+  // --- Silence Detection Setup End ---
+
+  // --- Silence Skip Toggle ---
+  setSilenceSkip(enabled) {
+    this.silenceSkipEnabled = enabled;
+    if (enabled && this.audioContext && this.audioContext.state === 'suspended') {
+      this.audioContext.resume();
+    }
+  }
+  // --- End Silence Skip Toggle ---
 
   get currentTrack() {
     return this.audioTracks[this.currentTrackIndex] || {}

@@ -65,7 +65,7 @@
 
     <modals-chapters-modal v-model="showChaptersModal" :current-chapter="currentChapter" :playback-rate="playbackRate" :chapters="chapters" @select="selectChapter" />
 
-    <modals-player-settings-modal v-model="showPlayerSettingsModal" />
+    <modals-player-settings-modal v-model="showPlayerSettingsModal" @skip-silence-changed="onSkipSilenceChanged" />
   </div>
 </template>
 
@@ -100,7 +100,8 @@ export default {
       showChaptersModal: false,
       showPlayerSettingsModal: false,
       currentTime: 0,
-      duration: 0
+      duration: 0,
+      skipSilence: false
     }
   },
   watch: {
@@ -323,6 +324,13 @@ export default {
     },
     showPlayerSettings() {
       this.showPlayerSettingsModal = !this.showPlayerSettingsModal
+    },
+    onSkipSilenceChanged(val) {
+      this.skipSilence = val;
+      // Assuming you have a reference to the LocalAudioPlayer instance as this.localAudioPlayer
+      if (this.localAudioPlayer && typeof this.localAudioPlayer.setSilenceSkip === 'function') {
+        this.localAudioPlayer.setSilenceSkip(val);
+      }
     },
     init() {
       this.playbackRate = this.$store.getters['user/getUserSetting']('playbackRate') || 1

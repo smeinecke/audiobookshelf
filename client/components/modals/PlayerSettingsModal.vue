@@ -17,6 +17,13 @@
       <div class="flex items-center mb-4">
         <ui-select-input v-model="playbackRateIncrementDecrement" :label="$strings.LabelPlaybackRateIncrementDecrement" menuMaxHeight="250px" :items="playbackRateIncrementDecrementValues" @input="setPlaybackRateIncrementDecrementAmount" />
       </div>
+      <!-- Skip Silence Toggle -->
+      <div class="flex items-center mb-4">
+        <ui-toggle-switch v-model="skipSilence" @input="setSkipSilence" />
+        <div class="pl-4">
+          <span>Skip Silence</span>
+        </div>
+      </div>
     </div>
   </modals-modal>
 </template>
@@ -40,7 +47,8 @@ export default {
       jumpForwardAmount: 10,
       jumpBackwardAmount: 10,
       playbackRateIncrementDecrementValues: [0.1, 0.05],
-      playbackRateIncrementDecrement: 0.1
+      playbackRateIncrementDecrement: 0.1,
+      skipSilence: false
     }
   },
   computed: {
@@ -68,6 +76,14 @@ export default {
     setPlaybackRateIncrementDecrementAmount(val) {
       this.playbackRateIncrementDecrement = val
       this.$store.dispatch('user/updateUserSettings', { playbackRateIncrementDecrement: val })
+    },
+    setSkipSilence(val) {
+      this.skipSilence = val;
+      this.$emit('skip-silence-changed', val);
+    },
+    setSkipSilence(val) {
+      this.skipSilence = val;
+      this.$emit('skip-silence-changed', val);
     },
     settingsUpdated() {
       this.useChapterTrack = this.$store.getters['user/getUserSetting']('useChapterTrack')
